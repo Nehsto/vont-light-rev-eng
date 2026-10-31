@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lightbulb Controls</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: sans-serif; background: #f4f5f7; color: #20242b; margin: 0; padding: 24px 16px; }
+    main { max-width: 380px; margin: auto; padding: 24px; background: white; border-radius: 16px; }
+    h1 { font-size: 1.5rem; margin: 0 0 24px; }
+    form { margin: 0 0 24px; }
+    button { width: 100%; font-size: 1.1rem; padding: 14px; border: 1px solid #bbc0c8; border-radius: 10px; cursor: pointer; }
+    #power { color: white; background: #263f61; border-color: #263f61; }
+    [role="switch"][aria-checked="true"] { background: #fff0c9; border-color: #c18b24; }
+    label { display: block; margin-bottom: 12px; }
+    input[type="range"] { width: 100%; min-height: 44px; accent-color: #263f61; }
+    input[type="color"] { width: 64px; height: 44px; cursor: pointer; }
+    #wheel { width: min(100%, 260px); aspect-ratio: 1; border-radius: 50%; margin: 20px auto 0; touch-action: none; cursor: crosshair;
+      background: radial-gradient(circle closest-side, white, transparent), conic-gradient(from 90deg, red, yellow, lime, cyan, blue, magenta, red); }
+    :focus-visible { outline: 3px solid #356bcc; outline-offset: 4px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Lightbulb Controls</h1>
+    <form method="post" action="/power">
+      <p>Power: $power_status</p>
+      <input type="hidden" name="on" value="$power_target">
+      <button id="power" type="submit">$power_label</button>
+    </form>
+    <form method="post" action="/warm">
+      <input type="hidden" name="on" value="$warm_target">
+      <button type="submit" role="switch" aria-checked="$warm_checked">Warm light: $warm_label</button>
+    </form>
+    <form method="post" action="/brightness">
+      <label for="brightness">Brightness: <output id="brightness-value" for="brightness">$brightness%</output></label>
+      <input id="brightness" name="brightness" type="range" min="0" max="100" value="$brightness"
+        oninput="document.getElementById('brightness-value').textContent = this.value + '%'"
+        onchange="this.form.requestSubmit()">
+    </form>
+    <form id="color-form" method="post" action="/color">
+      <label for="color">Color</label>
+      <input id="color" name="color" type="color" value="$color" onchange="this.form.requestSubmit()">
+      <div id="wheel" aria-hidden="true"></div>
+    </form>
+  </main>
+  <script>
+    const wheel = document.getElementById('wheel');
+    const picker = document.getElementById('color');
+    let dragging = false;
+
+    function chooseColor(event) {
+      const rect = wheel.getBoundingClientRect();
+      const x = event.clientX - rect.left - rect.width / 2;
+      const y = event.clientY - rect.top - rect.height / 2;
+      const hue = (Math.atan2(y, x) / (2 * Math.PI) + 1) % 1;
+      const saturation = Math.min(Math.hypot(x, y) / (rect.width / 2), 1);
+      const rgb = [5, 3, 1].map(n => {
+        const k = (n + hue * 6) % 6;
+        return Math.round(255 * (1 - saturation * Math.max(0, Math.min(k, 4 - k, 1))));
+      });
+      picker.value = '#' + rgb.map(v => v.toString(16).padStart(2, '0')).join('');
+    }
+
+    wheel.onpointerdown = event => {
+      if (event.button !== 0 || !event.isPrimary) return;
+      dragging = true;
+      wheel.setPointerCapture(event.pointerId);
+      chooseColor(event);
+    };
+    wheel.onpointermove = event => { if (dragging) chooseColor(event); };
+    wheel.onpointerup = event => {
+      if (!dragging) return;
+      dragging = false;
+      chooseColor(event);
+      document.getElementById('color-form').requestSubmit();
+    };
+    wheel.onpointercancel = () => { dragging = false; };
+  </script>
+</body>
+</html>

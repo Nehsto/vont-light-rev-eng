@@ -7,7 +7,6 @@ class Lightbulb:
 		self.uuid = uuid
 		self.client = BleakClient(self.mac)
 		self.serial = 0xFFFF
-		
 
 		self.power = False
 		self.warm_mode = False
@@ -53,7 +52,7 @@ class Lightbulb:
 		packet.append(self.checksum(packet))
 
 		await self.client.write_gatt_char(
-			self.UUID,
+			self.uuid,
 			bytes(packet),
 			response=True
 		)
@@ -70,6 +69,8 @@ class Lightbulb:
 
 		await self.send(0x83, payload)
 
+		self.power = on
+
 	async def set_color(self, r: int, g: int, b: int):
 		if not all(0 <= x <= 255 for x in (r, g, b)):
 			raise ValueError("RGB values must be between 0 and 255")
@@ -85,6 +86,8 @@ class Lightbulb:
 
 		await self.send(0x83, payload)
 
+		self.color = (r, g, b)
+
 	async def set_brightness(self, val: int):
 		if not 0 <= val <= 100:
 			raise ValueError("Brightness must be between 0 and 100")
@@ -96,6 +99,8 @@ class Lightbulb:
 		])
 
 		await self.send(0x83, payload)
+
+		self.brightness = val
 
 	async def set_warm_mode(self, enabled: bool):
 		payload = bytes([
